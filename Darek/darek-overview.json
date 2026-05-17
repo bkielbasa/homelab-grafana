@@ -1,0 +1,431 @@
+{
+  "__inputs": [
+    {
+      "name": "DS_PROMETHEUS",
+      "label": "Prometheus",
+      "description": "Prometheus scraping darek's /metrics (or otel-collector prom exporter).",
+      "type": "datasource",
+      "pluginId": "prometheus",
+      "pluginName": "Prometheus"
+    }
+  ],
+  "__requires": [
+    {"type": "grafana", "id": "grafana", "name": "Grafana", "version": "10.0.0"},
+    {"type": "datasource", "id": "prometheus", "name": "Prometheus", "version": "1.0.0"},
+    {"type": "panel", "id": "stat", "name": "Stat", "version": ""},
+    {"type": "panel", "id": "timeseries", "name": "Time series", "version": ""},
+    {"type": "panel", "id": "table", "name": "Table", "version": ""}
+  ],
+  "uid": "darek-overview",
+  "title": "Darek — overview",
+  "description": "End-to-end view of Darek: agent turns, tokens & cost, tool calls, external deps, ingest pipelines (mail, links, RSS, Todoist, blog-marketing, WhatsApp), memory, and Go runtime.",
+  "tags": ["darek", "agent", "llm"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "graphTooltip": 1,
+  "time": {"from": "now-6h", "to": "now"},
+  "refresh": "30s",
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "label": "Datasource",
+        "type": "datasource",
+        "query": "prometheus",
+        "current": {"selected": false, "text": "Prometheus", "value": "${DS_PROMETHEUS}"},
+        "hide": 0,
+        "refresh": 1
+      }
+    ]
+  },
+  "annotations": {"list": []},
+  "panels": [
+    {
+      "type": "row",
+      "title": "Health",
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 0},
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Turns (24h)",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "sum(increase(darek_turn_duration_seconds_count[24h]))", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "area"},
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 1}
+    },
+    {
+      "type": "stat",
+      "title": "Tokens (24h)",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "sum(increase(darek_tokens_input_total[24h])) + sum(increase(darek_tokens_output_total[24h]))", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "area"},
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 1}
+    },
+    {
+      "type": "stat",
+      "title": "USD (24h)",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "sum(increase(darek_llm_cost_usd_total[24h]))", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "currencyUSD", "decimals": 2}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "area"},
+      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 1}
+    },
+    {
+      "type": "stat",
+      "title": "Dep error rate (1h)",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "sum(rate(darek_dep_requests_total{outcome=\"error\"}[1h])) / clamp_min(sum(rate(darek_dep_requests_total[1h])), 1e-9)", "refId": "A"}],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 0.01},
+              {"color": "red", "value": 0.05}
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "area"},
+      "gridPos": {"h": 4, "w": 4, "x": 12, "y": 1}
+    },
+    {
+      "type": "stat",
+      "title": "Max-iters hit (1h)",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "sum(increase(darek_agent_max_iters_hit_total[1h]))", "refId": "A"}],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "orange", "value": 1}
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "background", "graphMode": "none"},
+      "gridPos": {"h": 4, "w": 4, "x": 16, "y": 1}
+    },
+    {
+      "type": "stat",
+      "title": "Goroutines",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "process_runtime_go_goroutines", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "area"},
+      "gridPos": {"h": 4, "w": 4, "x": 20, "y": 1}
+    },
+
+    {
+      "type": "row",
+      "title": "Agent",
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 5},
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Turn duration p50/p95",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [
+        {"expr": "histogram_quantile(0.50, sum by (le) (rate(darek_turn_duration_seconds_bucket[5m])))", "legendFormat": "p50", "refId": "A"},
+        {"expr": "histogram_quantile(0.95, sum by (le) (rate(darek_turn_duration_seconds_bucket[5m])))", "legendFormat": "p95", "refId": "B"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 6}
+    },
+    {
+      "type": "timeseries",
+      "title": "Turns/min by outcome",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "sum by (outcome) (rate(darek_turn_duration_seconds_count[1m]))", "legendFormat": "{{outcome}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short", "custom": {"fillOpacity": 25, "stacking": {"mode": "normal"}}}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 6}
+    },
+    {
+      "type": "timeseries",
+      "title": "Tool calls/min — top 10",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "topk(10, sum by (tool) (rate(darek_tool_calls_total[1m])))", "legendFormat": "{{tool}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 6}
+    },
+    {
+      "type": "timeseries",
+      "title": "Tool latency p95 (top 10)",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "topk(10, histogram_quantile(0.95, sum by (le, tool) (rate(darek_tool_latency_seconds_bucket[5m]))))", "legendFormat": "{{tool}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 14}
+    },
+    {
+      "type": "timeseries",
+      "title": "Iterations per turn (p50/p95)",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [
+        {"expr": "histogram_quantile(0.50, sum by (le) (rate(darek_turn_iterations_bucket[5m])))", "legendFormat": "p50", "refId": "A"},
+        {"expr": "histogram_quantile(0.95, sum by (le) (rate(darek_turn_iterations_bucket[5m])))", "legendFormat": "p95", "refId": "B"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 14}
+    },
+
+    {
+      "type": "row",
+      "title": "Tokens & cost",
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 22},
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Tokens/s by kind",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [
+        {"expr": "sum(rate(darek_tokens_input_total[1m]))",  "legendFormat": "input",  "refId": "A"},
+        {"expr": "sum(rate(darek_tokens_output_total[1m]))", "legendFormat": "output", "refId": "B"},
+        {"expr": "sum(rate(darek_tokens_cached_total[1m]))", "legendFormat": "cached", "refId": "C"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 23}
+    },
+    {
+      "type": "timeseries",
+      "title": "$/hour by model",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "sum by (model) (rate(darek_llm_cost_usd_total[1h]) * 3600)", "legendFormat": "{{model}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "currencyUSD"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 23}
+    },
+    {
+      "type": "timeseries",
+      "title": "Cache hit % (5m)",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "sum(rate(darek_tokens_cached_total[5m])) / clamp_min(sum(rate(darek_tokens_input_total[5m])), 1e-9)", "legendFormat": "hit %", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0, "max": 1}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 23}
+    },
+
+    {
+      "type": "row",
+      "title": "External deps",
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 31},
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "RPS by dep",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "sum by (dep) (rate(darek_dep_requests_total[1m]))", "legendFormat": "{{dep}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "reqps"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 32}
+    },
+    {
+      "type": "timeseries",
+      "title": "Error rate by dep (5m)",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "sum by (dep) (rate(darek_dep_requests_total{outcome=\"error\"}[5m])) / clamp_min(sum by (dep) (rate(darek_dep_requests_total[5m])), 1e-9)", "legendFormat": "{{dep}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0, "max": 1}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 32}
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency p95 by dep",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "histogram_quantile(0.95, sum by (le, dep) (rate(darek_dep_latency_seconds_bucket[5m])))", "legendFormat": "{{dep}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 32}
+    },
+    {
+      "type": "table",
+      "title": "Top failing ops (5m)",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "topk(10, sum by (dep, op) (rate(darek_dep_requests_total{outcome=\"error\"}[5m])) / clamp_min(sum by (dep, op) (rate(darek_dep_requests_total[5m])), 1e-9))", "format": "table", "instant": true, "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "percentunit"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 40}
+    },
+
+    {
+      "type": "row",
+      "title": "Mail & business activity",
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 48},
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Mail synced (24h)",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "sum(increase(darek_mail_envelopes_synced_total[24h]))", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "area"},
+      "gridPos": {"h": 4, "w": 4, "x": 0, "y": 49}
+    },
+    {
+      "type": "stat",
+      "title": "Mail bodies (24h)",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "sum(increase(darek_mail_bodies_fetched_total[24h]))", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "area"},
+      "gridPos": {"h": 4, "w": 4, "x": 4, "y": 49}
+    },
+    {
+      "type": "stat",
+      "title": "Mail attachments (24h)",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "sum(increase(darek_mail_attachments_fetched_total[24h]))", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "area"},
+      "gridPos": {"h": 4, "w": 4, "x": 8, "y": 49}
+    },
+    {
+      "type": "stat",
+      "title": "Mail sent (24h)",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "sum(increase(darek_mail_sent_total[24h]))", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "area"},
+      "gridPos": {"h": 4, "w": 4, "x": 12, "y": 49}
+    },
+    {
+      "type": "stat",
+      "title": "Links saved (24h)",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "sum(increase(darek_links_events_total{op=~\"save_new|save_update\"}[24h]))", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "area"},
+      "gridPos": {"h": 4, "w": 4, "x": 16, "y": 49}
+    },
+    {
+      "type": "stat",
+      "title": "WhatsApp ingested (24h)",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "sum(increase(darek_whatsapp_messages_ingested_total[24h]))", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}, "overrides": []},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}, "colorMode": "value", "graphMode": "area"},
+      "gridPos": {"h": 4, "w": 4, "x": 20, "y": 49}
+    },
+    {
+      "type": "timeseries",
+      "title": "Links events/min by op",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "sum by (op) (rate(darek_links_events_total[1m]))", "legendFormat": "{{op}}", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short", "custom": {"fillOpacity": 20, "stacking": {"mode": "normal"}}}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 53}
+    },
+    {
+      "type": "timeseries",
+      "title": "Memory notes/min (saved vs recalled)",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [
+        {"expr": "sum(rate(darek_memory_notes_saved_total[1m]))",    "legendFormat": "saved",    "refId": "A"},
+        {"expr": "sum(rate(darek_memory_notes_recalled_total[1m]))", "legendFormat": "recalled", "refId": "B"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 53}
+    },
+    {
+      "type": "timeseries",
+      "title": "Links ingest/analyze per min",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [
+        {"expr": "sum(rate(darek_links_ingest_total[1m]))",  "legendFormat": "ingest",  "refId": "A"},
+        {"expr": "sum(rate(darek_links_analyze_total[1m]))", "legendFormat": "analyze", "refId": "B"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 53}
+    },
+
+    {
+      "type": "row",
+      "title": "Sync pipelines (p95 duration)",
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 61},
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "FreshRSS sync p95",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "histogram_quantile(0.95, sum by (le) (rate(darek_freshrss_sync_duration_seconds_bucket[15m])))", "legendFormat": "p95", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 6, "x": 0, "y": 62}
+    },
+    {
+      "type": "timeseries",
+      "title": "Todoist sync p95",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "histogram_quantile(0.95, sum by (le) (rate(darek_todoist_sync_duration_seconds_bucket[15m])))", "legendFormat": "p95", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 6, "x": 6, "y": 62}
+    },
+    {
+      "type": "timeseries",
+      "title": "Blog-marketing sync p95",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "histogram_quantile(0.95, sum by (le) (rate(darek_blog_marketing_sync_duration_seconds_bucket[15m])))", "legendFormat": "p95", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 6, "x": 12, "y": 62}
+    },
+    {
+      "type": "timeseries",
+      "title": "Blog-marketing publish/regen p95",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [
+        {"expr": "histogram_quantile(0.95, sum by (le) (rate(darek_blog_marketing_publish_duration_seconds_bucket[15m])))",    "legendFormat": "publish p95",    "refId": "A"},
+        {"expr": "histogram_quantile(0.95, sum by (le) (rate(darek_blog_marketing_regenerate_duration_seconds_bucket[15m])))", "legendFormat": "regenerate p95", "refId": "B"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 6, "x": 18, "y": 62}
+    },
+
+    {
+      "type": "row",
+      "title": "Go runtime",
+      "collapsed": false,
+      "gridPos": {"h": 1, "w": 24, "x": 0, "y": 69},
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Goroutines",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "process_runtime_go_goroutines", "legendFormat": "goroutines", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 8, "x": 0, "y": 70}
+    },
+    {
+      "type": "timeseries",
+      "title": "Heap alloc",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "process_runtime_go_mem_heap_alloc_bytes", "legendFormat": "heap alloc", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "bytes"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 8, "x": 8, "y": 70}
+    },
+    {
+      "type": "timeseries",
+      "title": "GC pause (per cycle, avg)",
+      "datasource": {"type": "prometheus", "uid": "${datasource}"},
+      "targets": [{"expr": "rate(process_runtime_go_gc_pause_total_ns_sum[5m]) / clamp_min(rate(process_runtime_go_gc_pause_total_ns_count[5m]), 1e-9)", "legendFormat": "avg pause (ns)", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "ns"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 8, "x": 16, "y": 70}
+    }
+  ]
+}
